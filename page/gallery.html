@@ -1,0 +1,555 @@
+<!DOCTYPE HTML>
+<html>
+	<head>
+		<meta charset="utf-8"/>
+		<meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+		<meta name="HandheldFriendly" content="true"/>
+		<meta name="MobileOptimized" content="320"/>
+		<link rel="stylesheet" href="../css/mui.min.css">
+		<script src="../js/mui.min.js"></script>
+		<title></title>
+		<script type="text/javascript" src="../js/common.js"></script>
+		<script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+		<script src="../js/myjs/baiduocr.js"></script>
+		<script src="../js/myjs/Mymath.js"></script>
+		<script src="../js/myjs/imgControl.js"></script>
+		<script type="text/javascript">
+		// console.log(access_token);
+		 
+			<!--标准mui.css-->
+function plusReady(){
+	// 用户侧滑返回时关闭显示的图片
+	plus.webview.currentWebview().addEventListener('popGesture', function(e){
+		if(e.type=='start'){
+			closeImg();
+		}
+	}, false );
+}
+document.addEventListener('plusready',plusReady,false);
+
+function getImage(){
+	var cmr = plus.camera.getCamera();
+	cmr.captureImage(function(path){
+		outSet('保存照片到系统相册：');
+		plus.gallery.save(path, function(){
+			outLine('保存成功');
+		}, function(e){
+			outSet('保存失败: '+JSON.stringify(e));
+		});
+	}, function(e){
+		outSet('取消拍照');
+	}, {filename:'_doc/gallery/',index:1});
+}
+function galleryImg(){
+	// 从相册中选择图片
+	outSet('从相册中选择图片：');
+    plus.gallery.pick(function(path){
+    	outLine(path);
+        showImg1( path );
+        // createItem(path);
+    }, function(e){
+    	outSet('取消选择图片');
+    }, {filter:'image'});
+}
+ function getBase64Image(img, width, height) {
+      var canvas = document.createElement("canvas");
+      canvas.width = width ? width : img.width;
+      canvas.height = height ? height : img.height;
+      var ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      var dataURL = canvas.toDataURL();
+      return dataURL;
+    }
+function getImagePortion(imgObj, newWidth, newHeight, startX, startY, ratio,get_canvas=false){
+    //set up canvas for thumbnail
+    var tnCanvas = document.createElement('canvas');
+    var tnCanvasContext = tnCanvas.getContext('2d');
+    tnCanvas.width = newWidth; tnCanvas.height = newHeight;
+    
+    var bufferCanvas = document.createElement('canvas');
+    var bufferContext = bufferCanvas.getContext('2d');
+    bufferCanvas.width = imgObj.width;
+    bufferCanvas.height = imgObj.height;
+    bufferContext.drawImage(imgObj, 0, 0);
+   
+    tnCanvasContext.drawImage(bufferCanvas, startX,startY,newWidth * ratio, newHeight * ratio,0,0,newWidth,newHeight);
+    if(!get_canvas){
+		return tnCanvas.toDataURL();
+	}
+	else{
+		return tnCanvas;
+	}
+}
+
+var imgheight=566;
+var imgwidth=349;
+var pos1A=[75,166];
+var pos1B=[130,470]; //id
+var pos2A=[250,166];
+var pos2B=[286,470]; //socre
+var pos3A=[140,166];
+var pos3B=[250,470]; //name
+
+function showtable(id){
+	var img=document.getElementById("img"+String(id));
+	console.log(id)
+	// var img=document.getElementById("img1");
+	var cv=document.createElement("canvas");
+	cv.height=imgheight;
+	cv.width=imgwidth;
+	var cvbuff = cv.getContext('2d');
+	cvbuff.drawImage(img,0,0,imgwidth,imgheight)
+	getNameCut(cv,box_num=1,box_start=0)
+	var k=getID(cv)
+	var str = JSON.stringify(k);
+	// console.log(str);
+	json_to_table(k,id);
+}
+function getID(cv){
+	var kk= getScoreCutMain(cv)  // 获得
+	var myArray=new Array()
+	var img=getImagePortion(cv,pos1B[0]-pos1A[0],pos1B[1]-pos1A[1],pos1A[0], pos1A[1],1);
+	var data=getOcr(img);
+	var words_result_num=JSON.stringify(data["words_result_num"])
+	console.log(words_result_num);
+	for(i=0;i<words_result_num;i++){
+		   var ID_json={}
+		   var k=data["words_result"][i]["words"];
+		   var Name_img=getNameCut(cv,1,i)
+		   ID_json.id=k
+		   ID_json.name=Name_img
+		   ID_json.score=kk[i]
+		   myArray.push(ID_json);
+	}
+	
+	return myArray;
+	
+}
+
+function getResult(){
+	var myArray=new Array()
+	for(var i=0;i<hcj_num;i++){
+		for(var k=0;k<20;k++){
+			var Data_json={}
+			var str="id"+String(i)+"-"+String(k)
+			var id=document.getElementById(str);
+			var str="score"+String(i)+"-"+String(k)
+			var score=document.getElementById(str);
+			var str="name"+String(i)+"-"+String(k);
+			var name=document.getElementById(str);
+			if(id!=null&&score!=null){
+				Data_json.id=id.value
+				Data_json.score=score.value
+				Data_json.name=name.src
+				Data_json.num=1
+				myArray.push(Data_json)
+			}
+		}
+		
+	}
+	// console.log(JSON.stringify(myArray))
+	let newArr = []
+	myArray.forEach(el=>{
+	    const result = newArr.findIndex(ol=>{return el.id === ol.id})
+	    if(result!== -1){
+	        newArr[result].score = Number(newArr[result].score) + Number(el.score)
+			newArr[result].num=newArr[result].num+1
+	    }else{
+	        newArr.push(el)
+	    } 
+	})
+	var str = JSON.stringify(newArr);
+	creat_json_to_table(newArr,"result")
+	
+}
+function getScore(cv){
+	
+	// var pos2A=[250,166];
+	// var pos2B=[286,470];
+	// startX
+	var box_w=36
+	var box_h=25.33
+	
+	//imgObj, newWidth, newHeight, startX, startY, ratio,get_canvas
+	var myArray=new Array()
+	var img=getImagePortion(cv,pos2B[0]-pos2A[0],pos2B[1]-pos2A[1],pos2A[0], pos2A[1],1);	
+	var data=getOcr(img);
+	
+	var words_result_num=JSON.stringify(data["words_result_num"])
+	console.log(words_result_num);
+	for(i=0;i<words_result_num;i++){
+		   var k=data["words_result"][i]["words"];
+		   myArray[i]=k;
+	}
+	
+	return myArray;
+}
+
+function getScoreCutMain(cv){
+	
+	// var pos2A=[250,166];
+	// var pos2B=[286,470];
+	// startX
+	var myArray=new Array()
+	var box_start=0;
+	// 7 
+	// boxnum=12-7=5,
+	var flag=false;
+	var errflag=false;
+	// var data=getScoreCut(cv,12,0)
+	// var words_result_num=JSON.stringify(data["words_result_num"])
+	// console.log("words_result_num:"+words_result_num)
+	var data_list=new Array()
+	// var data_start=Math.abs(Number(data["words_result"][0]["words"]))*1;
+	// var data_end=Math.abs(Number(data["words_result"][0]["words"]))*-1;
+	// var data_limit
+	// if (data_start>data_end*-1){
+	// 	data_limit=data_start
+	// }
+	// else{
+	// 	data_limit=data_end*-1
+	// }
+		
+	for(var i=0;i<words_result_num;i++){
+		 var t=data["words_result"][i]["words"];
+		 if (Number(t)%1 == 0){
+			 if ((t.length>1&&t[0]=="0")){continue}
+			 var k=Math.abs(Number(t))
+			  data_list.push(k)  
+		 }
+	}
+	console.log(data_list)
+	while(!flag){
+	for(box_num=12-box_start;box_num>0;box_num--){
+		var data=getScoreCut(cv,box_num,box_start);
+		console.log(JSON.stringify(data))
+		var words_result_num=JSON.stringify(data["words_result_num"])
+		console.log("box_num:"+box_num)
+		console.log("words_result_num:"+words_result_num)
+		if (words_result_num==box_num){
+			for(i=box_start;i<box_num+box_start;i++){
+				   var k=data["words_result"][i-box_start]["words"];
+				   console.log(k)
+				   myArray[i]=parseInt(k);
+			}
+			
+			box_start=box_num+box_start;
+			break
+		}
+		if (box_num==1 &&words_result_num==0){
+			errflag=true;
+			flag=true;
+			console.log("error")
+		}
+		sleep(100);
+	}
+	if(box_start==12){
+		flag=true;
+		console.log(myArray)
+		break
+	}
+	}
+	myArray=ReArray(myArray)
+	return myArray;
+}
+function getScoreCutMain1(cv){
+	
+	// var pos2A=[250,166];
+	// var pos2B=[286,470];
+	// startX
+	var myArray=new Array()
+	var box_start=0;
+	// 7 
+	// boxnum=12-7=5,
+	var flag=false;
+	var errflag=false;
+	while(!flag){
+	for(box_num=12-box_start;box_num>0;box_num--){
+		var data=getScoreCut(cv,box_num,box_start);
+		console.log(JSON.stringify(data))
+		var words_result_num=JSON.stringify(data["words_result_num"])
+		console.log("box_num:"+box_num)
+		console.log("words_result_num:"+words_result_num)
+		if (words_result_num==box_num){
+			for(i=box_start;i<box_num+box_start;i++){
+				   var k=data["words_result"][i-box_start]["words"];
+				   console.log(k)
+				   myArray[i]=parseInt(k);
+			}
+			
+			box_start=box_num+box_start;
+			break
+		}
+		if (box_num==1 &&words_result_num==0){
+			errflag=true;
+			flag=true;
+			console.log("error")
+		}
+		sleep(100);
+	}
+	if(box_start==12){
+		flag=true;
+		console.log(myArray)
+		break
+	}
+	}
+	myArray=ReArray(myArray)
+	return myArray;
+}
+
+function galleryImgs(){
+	// 从相册中选择图片
+	outSet('从相册中选择多张图片：');
+    plus.gallery.pick(function(e){
+    	for(var i in e.files){
+	    	outLine(e.files[i]);
+			console.log("h");
+			showImg1(e.files[i]);
+    	}
+    }, function(e){
+    	outSet('取消选择图片');
+    },{filter:'image',multiple:true,system:false});
+}
+
+function galleryImgsMaximum(){
+	// 从相册中选择图片
+	outSet('从相册中选择多张图片(限定最多选择3张)：');
+    plus.gallery.pick(function(e){
+    	for(var i in e.files){
+	    	outLine(e.files[i]);
+    	}
+    }, function(e){
+    	outSet('取消选择图片');
+    },{filter:'image',multiple:true,maximum:3,system:false,onmaxed:function(){
+		plus.nativeUI.alert('最多只能选择3张图片');
+    }});// 最多选择3张图片
+}
+var lfs=[];// 保留上次选择图片列表
+var hcj_num=0;
+function showImg1(url){
+	if(0!=url.indexOf('file://')){
+		url='file://'+url;
+	}
+	lfs.push(url);
+	var div=document.createElement("div")
+	var newli = document.createElement("li");
+	var newli1 = document.createElement("li");
+	div.id="div"+String(hcj_num)
+	div.appendChild(newli);
+	div.appendChild(newli1);
+	newli.className="mui-table-view-cell mui-media mui-col-xs-6";
+	newli1.className="mui-table-view-cell mui-media mui-col-xs-6";
+	var img=document.createElement('img');
+	img.src=url;
+	img.id="img"+String(hcj_num);
+	img.className="mui-media-object";
+	newli.appendChild(img);
+	var button1=document.createElement("button");
+	button1.type="button";
+	button1.id="bt"+String(hcj_num);
+	button1.innerHTML="转换";
+	
+	var id=hcj_num;
+	button1.onclick= function (){showtable(id)}
+	newli.appendChild(button1);
+	var table=document.createElement('table');
+	table.id="table"+String(hcj_num);
+	table.className="mui-table";
+	table.border="1" 
+	newli1.appendChild(table);
+	document.getElementById("img_table").appendChild(div)
+	document.getElementById("img_table").appendChild(document.createElement("hr"))
+	
+	hcj_num=hcj_num+1;
+	console.log(img.id);
+}
+function closeImg(){
+	var trnode=document.getElementById('imgShow');
+	trnode&&trnode.parentNode.removeChild(trnode);
+}
+
+var list=null,first=null;
+document.addEventListener('DOMContentLoaded', function(){
+	list=document.getElementById('list');
+	first=document.getElementById('empty');
+}, false);
+// 添加列表项
+function createItem(path){
+	var li = document.createElement('li');
+	li.className = 'ditem';
+	li.innerHTML = '<span class="iplay"><font class="aname"></font><br/><font class="ainf"></font></span>';
+	li.setAttribute('onclick', 'displayMedia(this);' );
+	list.insertBefore(li, first.nextSibling);
+	var i = path.lastIndexOf('/');
+	if(i<0){
+		i = path.lastIndexOf('\\');
+	}
+	li.querySelector('.aname').innerText = path.substr(i+1);
+	li.querySelector('.ainf').innerText = path;
+	li.path = path;
+	// 设置空项不可见
+	first.style.display = 'none';
+}
+// 清除列表记录
+function cleanList() {
+	list.innerHTML = '<li id="empty" class="ditem-empty">无记录</li>';
+	empty = document.getElementById('empty');
+	// 删除音频文件
+	outSet('清空选择照片记录：');
+}
+function json_to_table(data,num){
+	var table_name="table"+String(num)
+	var table = document.getElementById(table_name);
+	var tbody = document.createElement("tbody");
+	table.appendChild(tbody);
+	console.log(data.length)
+	for (var i = 0; i < data.length; i++){
+		var tr = tbody.insertRow (tbody.rows.length);
+		var obj = data[i];
+		var td = tr.insertCell (tr.cells.length);
+		var input = document.createElement("input");
+		var name_img=document.createElement("img")
+		name_img.id="name"+String(num)+"-"+String(i)
+		name_img.src=obj["name"];
+		name_img.style.display="none"
+		input.type="text"
+		input.id="id"+String(num)+"-"+String(i)
+		input.classname=""
+		input.style="margin:0;height:25px"
+		input.value = obj["id"];
+		td.appendChild(input)
+		// td.appendChild(imagename)
+		var td = tr.insertCell (tr.cells.length);
+		var input = document.createElement("input");
+		input.type="text"
+		input.id="score"+String(num)+"-"+String(i)
+		input.tagName="score"
+		input.classname=""
+		input.style="margin:0;height:25px"
+		input.value = obj["score"];
+		td.appendChild(input)
+		td.appendChild(name_img)
+	}
+	
+}
+function creat_json_to_table(data,num){
+	var table = document.getElementById("result_table");
+	if (table !== "undefined") {
+	    while(table.hasChildNodes()){
+	        table.removeChild(table.lastChild)
+	    }
+	}
+	
+	var tbody = document.createElement("tbody");
+	table.appendChild(tbody);
+	console.log(data.length)
+	for (var i = 0; i < data.length; i++){
+		var tr = tbody.insertRow (tbody.rows.length);
+		var obj = data[i];
+		var td = tr.insertCell (0);
+		td.id="id"+String(num)+"-"+String(i)
+		td.innerHTML=obj["id"]		
+		var td1 = tr.insertCell (1);
+		var name_img = document.createElement("img");
+		name_img.src=obj["name"]
+		td1.appendChild(name_img)
+		// td.appendChild(imagename)
+		var td2 = tr.insertCell (2);
+		td2.id="score"+String(num)+"-"+String(i)
+		// input.style="margin:0;height:25px"
+		td2.innerHTML = obj["score"];
+		var td3 = tr.insertCell (3);
+		td3.id="num"+String(num)+"-"+String(i)
+		// input.style="margin:0;height:25px"
+		td3.innerHTML = obj["num"];
+	}
+	var input = document.getElementById("AllResult")
+	input.appendChild(table);
+	
+	
+}
+function Restart () {
+	hcj_num=0
+	var table = document.getElementById("result_table");
+	if (table !== "undefined") {
+	    while(table.hasChildNodes()){
+	        table.removeChild(table.lastChild)
+	    }
+	}
+	var table = document.getElementById("img_table");
+	if (table !== "undefined") {
+	    while(table.hasChildNodes()){
+	        table.removeChild(table.lastChild)
+	    }
+	}
+	outSet('重新开始');
+}
+// 返回后关闭图片显示
+var _back=window.back;
+window.back=function(){
+	closeImg();
+	_back();
+};
+		</script>
+		<link rel="stylesheet" href="../css/common.css" type="text/css" charset="utf-8"/>
+		<style type="text/css">
+.aname {
+	font-size: 16px;
+	text-overflow:ellipsis;
+	white-space:nowrap;
+}
+.ainf {
+	font-size: 12px;
+	text-overflow:ellipsis;
+	white-space:nowrap;
+}
+.iplay {
+	display: block;
+	background: no-repeat right center url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABYCAYAAAADWlKCAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAKwwAACsMBNCkkqwAAABZ0RVh0Q3JlYXRpb24gVGltZQAwOS8xMi8xM5w+I3MAAAAcdEVYdFNvZnR3YXJlAEFkb2JlIEZpcmV3b3JrcyBDUzVxteM2AAAD9UlEQVR4nO2b3XETMRRGDwzvoYOkg5hRAVkqiKmAdIA7wHSQVECoALsC1gXciV0BTge4gvCwgnHk9d/+WF8m97ztxrlXs8fS1Urym6enJxwd3uZugPMcFyKGCxHDhYjhQsRwIWK4EDFciBguRAwXIoYLEcOFiOFCxHAhYrgQMVyIGC5EDBcihgsRw4WI4ULEcCFiuBAx3uVuwDGY2XtgCBTAALjc8tEFMAdKYBJC+HOK9nXBm5dwUM7MCmAEXDcMMQVuQwhlV23qC2khZjYAboGrjkLOgFEIYd5RvM6RrSFmdgs80J0MYqyHGFsSuR4S60TJ9vrwCEziZ+YhhGXy/xdU9aWgqjfnW+IsgEKtvkgJiUPUPfUyZsD42DoQ68+Y+p62AG6UhjAZITt6xopq3L9vGf+Gqh6dJX+S6ilKNaRkU8YCGLSVARBjDGLMdS5jbgkkhMQiWyejSGtEG2KsghopKoU++5AV68ZDcrvXYWTH8Pghdz1R6CHpN3MFDPsc02PsYcy1qy0nJ6uQOANKZz+jfcOUmd3H6W1jYo5RcvsqtikbuXtI+kBmBxbwz8DczMZtksdcsz1tOinZhMRxPF2bGh8R4gz4amZLMxu2aEqa8zq2LQs5e0j6EB8bLv6dAz/NrGwyjMWcj3vadjJyCimS60nLeFfAbzO7bfANT3MXLdvSmJxCBsl12VHcL8AyvpkfSpo7bdvJyCkkfQfocv5/Bnw3s/mBs6Y097aFzd7JPcv6T5dv5GtcAr/2TZN7yt0IGSE908k0+RS8FiEvhhd1yKEFUw5YAVBApoe0XQrZwgL4GEIY7pLRU+5G5OwhC57PZgbAsqPYK6rdxUMXC9Npbro8fzJy9pB0qll0FPcOuDhCRl3ubEvwOYWUyXXb5YoZ1X7GqMHSfZq7bNmWxuQUki5XnDdc+n4EPoUQiiabSzFnejKl7TJOY7IJid/iaXJ7fESIFfCNas+9zQNMc05zHnjIPctKx/mrA9egflCJGLd5eDFXukGWdddQYU+95PlDWVE97GXPeS+oivf6saBZCKHoM+8+cvcQ2NyhOwMmfW4SxdgTNs9oZd0tBAEhsRDfJbcvgbIPKTtOnNzlPnECAkPWP8xsTv3ZrJ1v2UfmuKDqGRt5QgjZ9kDWyd5D1iioP1U4P3KzqZYYY5v0om38rpDpIeCHrUFMCPjPEeSE/COetf3SU/i7EEL2GVUdSjXkGfGBfWDzIFsb/q93dRizU2R7yDr+o09R/GfRzsmRrSGvFRcihgsRw4WI4ULEcCFiuBAxXIgYLkQMFyKGCxHDhYjhQsRwIWK4EDFciBguRAwXIoYLEcOFiOFCxHAhYrgQMf4CVuqCm+17t3sAAAAASUVORK5CYII=);
+	background-size: 50px 44px;
+	-ms-touch-action: auto;
+}
+		</style>
+	
+	
+	</head>
+	<body>
+		<br/>
+		<!-- <div class="button" onclick="getImage()">拍照并保存到相册</div> -->
+		<!-- <div class="button" onclick="galleryImg1()">确定</div> -->
+		<div class="button" onclick="gettoken()">获得token</div>
+		<div class="button" onclick="getstatus()">获得11</div>
+		<!-- <div class="button" onclick="galleryImg3()">确定2</div> -->
+		<div class="button" onclick="galleryImg()">从相册中单选图片</div>
+		<div class="button" onclick="galleryImgs()">从相册中多选图片</div>
+	
+		<!-- <canvas id="myCanvas" width="500" height="288"  style="border:1px solid #d3d3d3;"></canvas> -->
+
+
+		<!-- <div class="button" onclick="galleryImgsMaximum()">从相册中多选图片(最多三张)</div> -->
+		<!-- <div class="button" onclick="galleryImgsSelected()">从相册中多选图片(保存勾选记录)</div> -->
+		<br/>
+		<div class="mui-content" style="background-color:#fff">
+		    <h5 style="background-color:#efeff4">图库</h5>
+		    <ul id="img_table" class="mui-table-view mui-grid-view">
+				<hr>
+		    </ul>    
+		</div>
+		<div id="AllResult">
+			  <ul id="img_table" class="mui-table-view mui-grid-view">
+				 <li class="mui-table-view-cell mui-media mui-col-xs-6">
+				 	<table id="result_table"  border="1" class="mui-table" >
+						
+				 	</table>
+				 </li>	 
+			  </ul>  
+
+			<button type="button" onclick="getResult()">生成</button>
+			<button type="button" onclick="Restart()">重新开始</button>
+		</div>
+		<div id="outpos"/>
+		<div id="output">
+			请选择对应的图片进行转换。
+		</div>
+	</body>
+</html>
