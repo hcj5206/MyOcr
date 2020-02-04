@@ -56,24 +56,15 @@
 				// 5.在注册的事件中 获取 返回的 内容 并修改页面的显示
 				console.log('数据返回成功');
 				// 数据是保存在 异步对象的 属性
-				var backstr=ajaxObj.responseText;
-				k=Number(backstr.split("&")[0])
-				var ocrtoken=backstr.split("&")[1]
-				console.log(backstr)
+				k=Number(ajaxObj.responseText);
+				console.log(typeof(k))
 				console.log(k);
-				console.log(ocrtoken);
 				// var status = document.getElementById('status');
-				// status.valxwue=k;
+				// status.value=k;
 				var state = owner.getState();
 				state.account = name;
 				state.token = k;
 				owner.setState(state);
-				if(ocrtoken!=undefined){
-					var token = app.getToken();
-					token.token=ocrtoken;
-					owner.setToken(token);
-				}
-				
 				// owner.setState(k);
 				// 修改页面的显示
 				// document.querySelector('h1').innerHTML = ajaxObj.responseText;
@@ -167,24 +158,9 @@
 		var stateText = localStorage.getItem('$token') || "{}";
 		return JSON.parse(stateText);
 	};
-	owner.getRestore = function() {
-		var stateText = localStorage.getItem('$arr') || "{}";
-		return JSON.parse(stateText);
-	};
-	owner.getglobal_result = function() {
-		var stateText = localStorage.getItem('$global_result') || "{}";
-		return JSON.parse(stateText);
-	};
 	/**
 	 * 设置当前状态
 	 **/
-	owner.setglobal_result = function(state) {
-		state = state || {};
-		localStorage.setItem('$global_result', JSON.stringify(state));
-		//var settings = owner.getSettings();
-		//settings.gestures = '';
-		//owner.setSettings(settings);
-	};
 	owner.setState = function(state) {
 		state = state || {};
 		localStorage.setItem('$state', JSON.stringify(state));
@@ -195,13 +171,6 @@
 	owner.setToken = function(state) {
 		state = state || {};
 		localStorage.setItem('$token', JSON.stringify(state));
-		//var settings = owner.getSettings();
-		//settings.gestures = '';
-		//owner.setSettings(settings);
-	};
-	owner.setRestore = function(state) {
-		state = state || {};
-		localStorage.setItem('$arr', JSON.stringify(state));
 		//var settings = owner.getSettings();
 		//settings.gestures = '';
 		//owner.setSettings(settings);

@@ -1,0 +1,52 @@
+<html>
+    <head>
+        <meta charset="UTF-8">
+		<script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+		<!-- <script type="text/javascript" src="jquery-3.3.1.min.js" ></script> -->
+		<script>
+		    var access_token ="25.26e742af0e39cd60662c32c96abcdebc.315360000.1890721551.282335-17907007";
+		    // 监听图片选择事件
+			
+		    function getImg (event) {
+		        var imageBase = "";
+		        var reader = new FileReader();
+		        reader.readAsDataURL(event.target.files[0]);
+		        reader.onload = function (e) {
+		            imageBase = e.target.result.replace("data:image/png;base64,","");
+		            $("#showImg").prop("src", "data:image/png;base64," + imageBase);
+		            $.ajax({
+		                header: {
+		                    "Content-Type": "application/x-www-form-urlencoded"
+		                },
+		                type: "post",
+		                url: "https://aip.baidubce.com/rest/2.0/ocr/v1/general_basic",
+		                async: true,
+		                data: {
+		                    access_token: access_token,
+		                    id_card_side: "front",
+		                    image: imageBase
+		                },
+		                dataType: "json",
+		                timeout: 30000,
+		                success: function (data) {
+		                    console.log("解析成功");
+		                    console.log(data);
+						   var str = JSON.stringify(data);
+						   console.log(str);
+		                },
+		                error: function (xhr) {
+		                    console.log("请求解析失败");
+		                }
+		            });
+		        }
+		    }
+		</script>
+        <title></title>
+    </head>
+    <body>
+		<div class="button" onclick="galleryImg1()">确定</div>
+        <input type="file" id="img" onchange="getImg(event)" />
+        <img id="showImg" src="" />
+    </body>
+    
+</html>
